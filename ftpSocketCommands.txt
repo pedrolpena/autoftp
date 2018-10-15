@@ -1,0 +1,88 @@
+
+In order to send commands and receive responses from the ftp message manager,
+any client that connects must identify itself with the name command.
+
+For example, after establishing a socket connection,
+send the following.
+
+"<NAME>command</NAME>" followed by an "ACK"
+
+Once set, the message manager will forward commands from this socket to the command processor client.
+Once processed by the command processor client, the message mananger will know to route repsonses to all clients
+named "command".
+
+
+All commands must be enclosed in "<CMD>some_command</CMD>" and followed by and "ACK"
+All accepted command responses will be in the form of "<CMDREPLY>value(s)</CMDREPLY>"
+All rejeceted command responses will be in the form of "<CMDERROR>error message</CMDERROR>"
+
+------------------       
+-The get commands-
+------------------
+getQueueRefresh          :returns the number of minutes the program waits to check the queue.
+getQueuePath             :returns the local directory where the files will be picked up.
+getLogFilePath           :returns the the local path that holds the logs and database. 
+getServerName            :returns the name/ip of the FTP server to connect to.
+getUserName              :returns the FTP server username.
+getPassword              :returns the FTP server password.
+getUploadPath            :returns the remote path to which files will be uploaded to. this path must start and end with "/".
+getTransmit              :returns a boolean(true/false) inidicating whether transmit is on.
+getPhoneBookEntry        :returns the name of the phone book entry/script to use when dialing.
+getUseDialer             :returns a boolean(true/false) indicating whether a ppp dialer is being used.
+getHost                  :returns the socket messaging server ip adddress.
+getPort                  :returns the socket messaging sever port.
+setFileSizeLimit         :returns the file size limit in bytes.
+getConfig                :returns all of the configuration in one line formatted as follows.
+                              "<CMDREPLY>queuerefresh::queuepath::logfilepath::servername::username::password::uploadpath::transmit::phonebookentry::usedialer::host::port::filesizelimit</CMDREPLY>"
+
+-java example requesting username
+    "out.println("<CMD>getUserName</CMD>");"
+    "out.println("ACK");"
+
+repsonse received
+    "<CMDREPLY>mutil</CMDREPLY>"                         
+
+------------------       
+-The set commands-
+------------------
+setQueueRefresh=         :sets the number of minutes the program waits to check the queue. This number must be greater than 0.
+setQueuePath=            :sets the local directory where the files will be picked up. Must be a valid local path.
+setLogFilePath=          :sets the the local path that holds the logs and database. Must be a valid local path.
+setServerName=           :sets the name/ip of the FTP server to connect to.
+setUserName=             :sets the FTP server username.
+setPassword=             :sets the FTP server password.
+setUploadPath=           :sets the remote path to which files will be uploaded to. tThis path must start and end with "/".
+setTransmit=             :sets a boolean(true/false) inidicating whether transmit is on. This must be a boolean
+setPhoneBookEntry=       :sets the name of the phone book entry/script to use when dialing.
+setUseDialer=            :sets a boolean(true/false) indicating whether a ppp dialer is being used. This must be a boolean
+setHost=                 :sets the socket messaging server ip adddress. This number must be greater than -1
+setPort=                 :sets the socket messaging sever port.
+setFileSizeLimit=        :sets the file size limit in bytes. Only files with a size equal to or less then this will be transmitted
+                              unless the value is set to -1. This value removes the size limit restriction.
+setConfig=               :sets all of the configuration in one line formatted as follows.
+                             "<CMD>queuerefresh::queuepath::logfilepath::servername::username::password::uploadpath::transmit::phonebookentry::usedialer::host::port::filesizelimit</CMD>"
+                             if the number of fields is different from 13 then  "<CMDERROR>setConfig was not formatted properly</CMDERROR>" will be sent.
+    
+setShutDown=             :setting this value to true will shut down the ftp program. This must be a boolean
+
+
+-java example setting username
+    "out.println("<CMD>setUserName=neska</CMD>");"
+    "out.println("ACK");"
+
+repsonse received
+    "<CMDREPLY>neska</CMDREPLY>"
+
+
+-java example attempting to change the upload path from "received" to "incoming" with an incorrectly formatted path. 
+    "out.println("<CMD>setUploadPath=/incoming</CMD>");"
+    "out.println("ACK");"
+
+repsonse received
+    "<CMDREPLY>neska</CMDREPLY>"
+"<CMDERROR>/incoming is not a properly formatted upload path.</CMDERROR>"
+"<CMDREPLY>/received/</CMDREPLY>"
+
+
+
+
