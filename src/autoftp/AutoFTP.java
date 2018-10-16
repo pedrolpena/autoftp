@@ -30,6 +30,8 @@ import java.net.SocketException;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.TimeZone;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 
@@ -124,7 +126,7 @@ public class AutoFTP implements ActionListener, AutoFTPInterface {
 
             }//end if
 
-            int tempInt = 0;
+            int tempInt;
 
             //--------initialize prefs-----------------//
             temp = prefs.get("password", "@@@");
@@ -513,9 +515,21 @@ public class AutoFTP implements ActionListener, AutoFTPInterface {
                 if (!fileList.equals("") && (prefs.getBoolean("transmitCheckbox", false) && !isTransmitting()) && !pppConnect.isAlive()) {
                     pppConnect = new PPPConnectThread();
                     pppConnect.start();
+                    while (pppConnect.getConnectionStatus() == 0) {
+                        try {
+                            Thread.sleep(25);
+                        } catch (InterruptedException ex) {
+                            Logger.getLogger(AutoFTP.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                    }//end while
+                    if (pppConnect.getConnectionStatus() == 1) {
+                        sendReceiveFiles();
+                    }
+
                 }//end if    
 
             }//end action performed
+
         };// end action listener 
 
         queueTimer = new Timer((new Integer(prefs.get("queueRefresh", "5")).intValue()) * 60000, queueTimerActionListener);
@@ -605,7 +619,11 @@ public class AutoFTP implements ActionListener, AutoFTPInterface {
         else if (listOfFiles.length > 0) {
             statusMessage(badFile + " is not a valid zip file\n");
         }//end if//end else
-
+          
+        if (rD.isAlive()) {
+            pppConnect.hangUpConnection();
+        }
+    
     }// end sendReceiveFile
 
     private void sendFile(File[] listOfFiles) {
@@ -834,32 +852,41 @@ public class AutoFTP implements ActionListener, AutoFTPInterface {
      * RASDialer
      */
     public class PPPConnectThread extends Thread {
+        int connectionStatus = -1;
 
         @Override
         public void run() {
             boolean rasIsAlive = false;
+            
             resetCounters(); // reset time counters
             dialTime = getTime(); // get dial time
+            
             if (!prefs.getBoolean("phoneBookEntryCheckBox", false)) {
                 rasIsAlive = false;
             } else {
                 rasIsAlive = rD.isAlive();
             }
-
+//======================================================================================================================
             try {
 
                 if (!rasIsAlive && prefs.getBoolean("phoneBookEntryCheckBox", false) && !prefs.get("phoneBookentryTextField", "Iridium").equals("")) {
+                    connectionStatus = 0;
 
                     statusMessage("Dialing phonebook entry " + prefs.get("phoneBookentryTextField", "Iridium") + "\n\n");
 
                     if (rD.openConnection(prefs.get("phoneBookentryTextField", "Iridium"))) {
+                        connectionStatus = 1;
                         internetConnect = getTime();
                         statusMessage("PPP connection Successful\n\n");
                         
 
-                        sendReceiveFiles();
+                        //sendReceiveFiles();
                         
-                        hangUpConnection();
+                        while (rD.isAlive()) {
+                            Thread.sleep(100);
+                        }
+                        connectionStatus = -1;
+                        //hangUpConnection();
 
                     }// end if
 
@@ -872,10 +899,16 @@ public class AutoFTP implements ActionListener, AutoFTPInterface {
                     queueTimer.stop();
                     queueTimer.setInitialDelay(1000);
                     queueTimer.restart();
+                   connectionStatus = -1;
 
                 }// end if
                 statusMessage(e.getMessage() + "\n");;
+            } catch (InterruptedException ex) {
+                Logger.getLogger(AutoFTP.class.getName()).log(Level.SEVERE, null, ex);
             }// end catch
+            
+            
+            //======================================================================================================================
             if (prefs.getBoolean("transmitCheckbox", false) && !prefs.getBoolean("phoneBookEntryCheckBox", false)) {
 
                 internetConnect = getTime();
@@ -902,7 +935,13 @@ public class AutoFTP implements ActionListener, AutoFTPInterface {
                 disconnectTime = getTime() - internetConnect;
                 statusMessage("Connection to " + prefs.get("phoneBookentryTextField", "Iridium") + " was already closed\n\n");
             }// end else
+           connectionStatus = -1;
         }//end hangUpConnection
+        
+        public int getConnectionStatus(){
+        
+        return connectionStatus;
+        }
 
     }// end PPPConnectThread
 
